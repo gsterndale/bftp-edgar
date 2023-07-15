@@ -1,13 +1,17 @@
 org: gsterndale
 app: bftp-edgar
 service: bftp-edgar
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 provider:
   name: aws
   runtime: nodejs18.x
 
 functions:
+  filingsHandler:
+    handler: index.findFilings
+    events:
+      - schedule: rate(1 day)
   rateHandler:
     handler: index.run
     events:
