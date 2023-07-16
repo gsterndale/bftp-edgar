@@ -6,22 +6,28 @@ frameworkVersion: "3"
 provider:
   name: aws
   runtime: nodejs18.x
+  environment:
+    SF_SECURITY_TOKEN: ${env:SF_SECURITY_TOKEN}
+    SF_USERNAME: ${env:SF_USERNAME}
+    SF_PASSWORD: ${env:SF_PASSWORD}
+    SF_URL: ${env:SF_URL}
+    EDGAR_UA: ${env:EDGAR_UA}
 
 functions:
   filingsHandler:
     handler: index.findFilings
     events:
       - schedule: rate(1 day)
-  rateHandler:
-    handler: index.run
-    events:
-      # Invoke Lambda function every minute
-      - schedule: rate(1 minute)
-  cronHandler:
-    handler: index.run
-    events:
-      # Invoke Lambda function every 2nd minute from Mon-Fri
-      - schedule: cron(0/2 * ? * MON-FRI *)
+  # rateHandler:
+  #   handler: index.run
+  #   events:
+  #     # Invoke Lambda function every minute
+  #     - schedule: rate(1 minute)
+  # cronHandler:
+  #   handler: index.run
+  #   events:
+  #     # Invoke Lambda function every 2nd minute from Mon-Fri
+  #     - schedule: cron(0/2 * ? * MON-FRI *)
 
 plugins:
   - serverless-plugin-typescript
