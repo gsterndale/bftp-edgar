@@ -123,4 +123,12 @@ Your cron function "aws-node-scheduled-cron-dev-rateHandler" ran at Fri Mar 05 2
 ```bash
 asdf install
 npm install
+direnv allow .
+cp .envrc.example .envrc
+```
+
+### Test
+
+```bash
+npm run test
 ```
