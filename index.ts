@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, Context } from "aws-lambda";
-import { findRecentFilingDates, findCIK } from "./src/edgar";
+import { EDGAR } from "./src/edgar";
+import { Portfolio } from "./src/portfolio";
 
 const run = async (event: APIGatewayProxyEvent, context: Context) => {
   const time = new Date();
@@ -9,16 +10,17 @@ const run = async (event: APIGatewayProxyEvent, context: Context) => {
 };
 
 const findFilings = async (event: APIGatewayProxyEvent, context: Context) => {
-  const companies = [
-    { name: "HeyKiddo", cik: "0001978342" },
-    { name: "HeyKiddo" },
-    { name: "OnTheGoga" },
-    { name: "Roar for good", cik: "0001643039" },
-  ];
-  const dates = companies.map((company) => findRecentFilingDates(company));
+  const portfolio = new Portfolio();
+  const companies = await portfolio.companies();
+  const edgar = new EDGAR();
+  const dates = companies.map((company) =>
+    edgar.findRecentFilingDates(company).then((dates) => {
+      return { name: company.name, dates };
+    })
+  );
 
   Promise.all(dates).then((values) => {
-    console.log({ dates: values });
+    console.log(values);
   });
 };
 
