@@ -14,10 +14,16 @@ provider:
     EDGAR_UA: ${env:EDGAR_UA}
 
 functions:
+  ciksHandler:
+    handler: index.findCIKs
+    events:
+      - schedule: rate(30 days)
+
   filingsHandler:
     handler: index.findFilings
     events:
       - schedule: rate(1 day)
+
   # rateHandler:
   #   handler: index.run
   #   events:
