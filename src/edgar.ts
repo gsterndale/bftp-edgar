@@ -2,14 +2,14 @@ import { XMLParser } from "fast-xml-parser";
 
 const UA = process.env.EDGAR_UA || "";
 
-type TSearchCriteria = {
+type SearchCriteria = {
   name?: string;
   cik?: string;
   form?: string;
   date?: Date;
 };
 
-type TSubmissions = {
+type Submissions = {
   cik: string;
   name: string;
   filings: {
@@ -20,31 +20,31 @@ type TSubmissions = {
   };
 };
 
-type TEntry = {
+type Entry = {
   content: {
     "filing-date": string;
     "filing-type": string;
   };
 };
 
-type TCompanyResponse = {
+type CompanyResponse = {
   feed: {
     "company-info": {
       cik: string;
     };
-    entry: TEntry | TEntry[];
+    entry: Entry | Entry[];
   };
 };
 
 class EDGAR {
-  async fetchSubmissions(cik: string): Promise<TSubmissions> {
+  async fetchSubmissions(cik: string): Promise<Submissions> {
     if (!cik) throw new Error(`${cik} CIK`);
     const URL = `https://data.sec.gov/submissions/CIK${cik}.json`;
     const response = await fetch(URL, {
       headers: { "User-Agent": UA },
     });
     if (!response.ok) throw new Error(response.statusText);
-    return await (response.json() as Promise<TSubmissions>);
+    return await (response.json() as Promise<Submissions>);
   }
 
   async fetchCompanyByName(name: string): Promise<string> {
@@ -59,7 +59,7 @@ class EDGAR {
   async fetchCompanyResponse(name: string) {
     const parser = new XMLParser({ parseTagValue: false });
     return this.fetchCompanyByName(name).then((xmlString) => {
-      return parser.parse(xmlString) as TCompanyResponse;
+      return parser.parse(xmlString) as CompanyResponse;
     });
   }
 
@@ -69,14 +69,14 @@ class EDGAR {
     });
   }
 
-  async fetchEntriesByName(name: string): Promise<TEntry[]> {
+  async fetchEntriesByName(name: string): Promise<Entry[]> {
     return this.fetchCompanyResponse(name).then((response) => {
       return [response.feed.entry].flat();
     });
   }
 
   async findRecentFilingDates(
-    criteria: TSearchCriteria = { date: new Date() }
+    criteria: SearchCriteria = { date: new Date() }
   ): Promise<string[]> {
     if (criteria.cik == undefined && criteria.name) {
       return this.fetchEntriesByName(criteria.name).then((entries) =>
