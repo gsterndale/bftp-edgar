@@ -6,20 +6,25 @@ const findCIKs = async (event: APIGatewayProxyEvent, context: Context) => {
   const portfolio = new Portfolio();
   const companies = await portfolio.companies({ active: true, cik: null });
   console.log(companies);
-
   // If any are found, send an email alert with the suggested CIK(s)
+  // https://www.serverless.com/examples/aws-ses-serverless-example
 };
 
 const findFilings = async (event: APIGatewayProxyEvent, context: Context) => {
   const portfolio = new Portfolio();
   const companies = await portfolio.companies({ active: true });
+  //companies = companies.filter((company) => company.name === "HeyKiddo");
   const edgar = new EDGAR();
-  companies.map((company) =>
-    edgar.findNewFilings(company).then((filings) => {
-      // Send an email alert and store them in SF
-      // https://www.serverless.com/examples/aws-ses-serverless-example
-      console.log({ [company.name]: filings });
-    })
+  Promise.all(
+    companies.map((company) =>
+      edgar.findNewFilings(company).then((newFilings) => {
+        portfolio
+          .addCompanyFilings(company, newFilings)
+          .then((addedFilings) => {
+            console.log({ [company.name]: { addedFilings } });
+          });
+      })
+    )
   );
 };
 

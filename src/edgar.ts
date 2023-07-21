@@ -16,7 +16,7 @@ type Submissions = {
     recent: {
       filingDate: string[];
       form: string[];
-      fileNumber: string[];
+      accessionNumber: string[];
     };
   };
 };
@@ -25,7 +25,7 @@ type Entry = {
   content: {
     "filing-date": string;
     "filing-type": string;
-    "file-number": string;
+    "accession-number": string;
   };
 };
 
@@ -48,8 +48,17 @@ class EDGAR {
     } else {
       throw new Error(`No CIK provided for ${company.name}`);
     }
-    const existingNumbers = company.filings.map((filing) => filing.number);
-    return filings.filter((filing) => !existingNumbers.includes(filing.number));
+
+    const existingStrings = company.filings.map((filing) =>
+      EDGAR.filingString(filing)
+    );
+    return filings.filter(
+      (found) => !existingStrings.includes(EDGAR.filingString(found))
+    );
+  }
+
+  private static filingString(filing: Filing) {
+    return `${filing.form}-${filing.date}-${filing.number}`;
   }
 
   private static async fetchFilingsByCIK(cik: string): Promise<Filing[]> {
@@ -59,7 +68,7 @@ class EDGAR {
           const filing: Filing = {
             date: date,
             form: submissions.filings.recent.form[index],
-            number: submissions.filings.recent.fileNumber[index],
+            number: submissions.filings.recent.accessionNumber[index],
           };
           memo.push(filing);
           return memo;
@@ -76,7 +85,7 @@ class EDGAR {
           const filing: Filing = {
             form: entry.content["filing-type"],
             date: entry.content["filing-date"],
-            number: entry.content["file-number"],
+            number: entry.content["accession-number"],
           };
           memo.push(filing);
         }

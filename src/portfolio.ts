@@ -1,5 +1,5 @@
 import { Condition } from "aws-lambda";
-import { Connection, Record } from "jsforce";
+import { Connection, Record, RecordResult, SuccessResult } from "jsforce";
 
 // SalesForce assumptions:
 // Custom CIK text field on Account
@@ -8,8 +8,9 @@ import { Connection, Record } from "jsforce";
 // Custom Object created for Filing with the following required fields:
 //   - File Number, text
 //   - Account, Master-Detail Relationship
-//   - Form, picklist with values D, D/A
+//   - Form, text D, D/A
 //   - Date, date
+// In SalesForce, users can create and configure a workflow to send email alerts upon creation of a new Filing.
 // The following SalesForce info is stored in ENV vars:
 const SECURITYTOKEN = process.env.SF_SECURITY_TOKEN || "";
 const USERNAME = process.env.SF_USERNAME || "";
@@ -17,9 +18,11 @@ const PASSWORD = process.env.SF_PASSWORD || "";
 const URL = process.env.SF_URL || "";
 
 type FilingRecord = {
+  Id?: string;
   Form__c: string; // Form Type e.g. D or D/A
   Date__c: string; // YYYY-MM-DD e.g. 2022-02-16
   Name: string; // Unique SEC Filing Number
+  Account__c: string; // AccountRecord ID
 };
 
 type Relationship = {
@@ -28,6 +31,7 @@ type Relationship = {
 };
 
 type AccountRecord = {
+  Id?: string;
   Name: string;
   CIK__c?: string;
   Active__c?: "Yes" | "No";
@@ -56,9 +60,40 @@ class Portfolio {
     return accounts.map((record) => Portfolio.accountToCompany(record));
   }
 
+  async addCompanyFilings(
+    company: Company,
+    filings: Filing[]
+  ): Promise<Filing[]> {
+    return Promise.all(
+      filings.map(async (filing) => {
+        const result = await this.create(
+          "Filing__c",
+          Portfolio.filingToFilingRecord(filing, company)
+        );
+        filing.id = result.id;
+        return filing;
+      })
+    );
+  }
+
+  private async create(
+    sobject: string,
+    fields: object
+  ): Promise<SuccessResult> {
+    let conn = await this.authenticatedConn();
+    const result = await conn.sobject(sobject).create(fields, (err) => {
+      if (err) throw new Error(err.message);
+    });
+    if (result.success && result.id !== undefined) {
+      return result;
+    } else {
+      throw new Error("Error creating object");
+    }
+  }
+
   private async authenticatedConn() {
     await this.conn.login(USERNAME, PASSWORD + SECURITYTOKEN, (err) => {
-      if (err) return console.error(err);
+      if (err) throw new Error(err.message);
     });
     return this.conn;
   }
@@ -66,28 +101,46 @@ class Portfolio {
   private async query(sobject: string, soql: SOQL): Promise<Record[]> {
     let conn = await this.authenticatedConn();
     const query = conn.sobject(sobject).find(soql).include("Filings__r"); // include child relationship records in query result.
-    const records = await query.execute();
+    const records = await query.execute(undefined, (err, records) => {
+      if (err) throw new Error(err.message);
+      return records;
+    });
     return records || [];
   }
 
   private static accountToCompany(record: AccountRecord): Company {
     const filings = (record.Filings__r || { records: [] })
       .records as FilingRecord[];
-    const temp = {
+    return {
+      id: record.Id,
       name: record.Name,
       cik: record.CIK__c,
       active: record.Active__c,
       filings: filings.map((record) => this.filingRecordToFiling(record)),
     };
-
-    return temp;
   }
 
   private static filingRecordToFiling(record: FilingRecord): Filing {
     return {
+      id: record.Id,
       form: record.Form__c,
       date: record.Date__c,
       number: record.Name,
+    };
+  }
+
+  private static filingToFilingRecord(
+    filing: Filing,
+    company: Company
+  ): FilingRecord {
+    if (company.id === undefined)
+      throw new Error(`Company ${company.name} has no ID`);
+    return {
+      Id: filing.id,
+      Name: filing.number,
+      Form__c: filing.form,
+      Date__c: filing.date,
+      Account__c: company.id,
     };
   }
 
