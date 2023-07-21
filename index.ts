@@ -14,21 +14,13 @@ const findFilings = async (event: APIGatewayProxyEvent, context: Context) => {
   const portfolio = new Portfolio();
   const companies = await portfolio.companies({ active: true });
   const edgar = new EDGAR();
-  const dates = companies.map((company) =>
-    edgar.findRecentFilingDates(company).then((dates) => {
-      // TODO pick a storage mechanism (SalesForce or some AWS data store)
-      // DynamoDB? https://github.com/serverless/examples/blob/v3/aws-node-express-dynamodb-api/serverless.yml
-      // Query storage for known filing dates
-      // Determine if any dates found are unknown
-      // if unknown, send an email alert and store them
+  companies.map((company) =>
+    edgar.findNewFilings(company).then((filings) => {
+      // Send an email alert and store them in SF
       // https://www.serverless.com/examples/aws-ses-serverless-example
-      return { name: company.name, dates };
+      console.log({ [company.name]: filings });
     })
   );
-
-  Promise.all(dates).then((values) => {
-    console.log(values);
-  });
 };
 
 export { findFilings, findCIKs };

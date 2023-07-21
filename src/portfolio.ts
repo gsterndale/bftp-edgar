@@ -16,19 +16,6 @@ const USERNAME = process.env.SF_USERNAME || "";
 const PASSWORD = process.env.SF_PASSWORD || "";
 const URL = process.env.SF_URL || "";
 
-type Company = {
-  name: string;
-  cik?: string;
-  active?: string;
-  filings: Filing[];
-};
-
-type Filing = {
-  type: string; // Form Type e.g. D or D/A
-  date: string; // YYYY-MM-DD e.g. 2022-02-16
-  number: string; // Unique SEC Filing Number
-};
-
 type FilingRecord = {
   Form__c: string; // Form Type e.g. D or D/A
   Date__c: string; // YYYY-MM-DD e.g. 2022-02-16
