@@ -48,13 +48,35 @@ For this project to work, please create the following in the SalesForce Object M
 
 ### Workflow automation:
 
-In SalesForce, users can create and configure a Workflow Rule associated with Filing objects, with an Email Alert Action, that will run when a new Filing is created for "Active" Accounts.
+In SalesForce, users can create and configure Workflow Rules that can trigger actions e.g. email alerts.
+
+#### New Filing
+
+Create and activate a Workflow Rule associated with Filing objects, with an Email Alert Action, that will run when a new Filing is created for "Active" Accounts.
 
 A simple Classic Email Template might look like this:
 
 ```
 We found that {!Account.Name} has a filed form type {!Filing__c.Form__c} with the SEC on {!Filing__c.Date__c}.
 ```
+
+The Email Alert should be configured to include the Account Owner as a recipient.
+
+#### Updated Account CIK
+
+Create and activate a Workflow Rule associated with Account objects, with an Email Alert Action, that will run when a record is "created, and every time it's edited" with the following formula:
+
+```
+ISCHANGED(CIK__c)
+```
+
+A simple Classic Email Template might look like this:
+
+```
+We found that {!Account.Name}'s CIK has been updated to "{!Account.CIK__c}". Please confirm that this value is the correct SEC CIK. https://www.sec.gov/edgar/searchedgar/cik
+```
+
+The Email Alert should be configured to include the Account Owner as a recipient.
 
 ## Developer setup
 
