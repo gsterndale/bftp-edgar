@@ -39,6 +39,10 @@ type CompanyResponse = {
 };
 
 class EDGAR {
+  async findCIK(name: string): Promise<string | undefined> {
+    return this.fetchCIKByName(name);
+  }
+
   async findNewFilings(company: Company): Promise<Filing[]> {
     let filings: Filing[] = [];
     if (!company.cik || company.cik === "") {
@@ -94,30 +98,6 @@ class EDGAR {
     );
   }
 
-  async findRecentFilingDates(
-    criteria: SearchCriteria = { date: new Date() }
-  ): Promise<string[]> {
-    if (criteria.cik == undefined && criteria.name) {
-      return EDGAR.fetchEntriesByName(criteria.name).then((entries) =>
-        entries.reduce((memo: string[], entry) => {
-          if (entry && entry.content && entry.content["filing-date"])
-            memo.push(entry.content["filing-date"]);
-          return memo;
-        }, [])
-      );
-    } else if (criteria.cik) {
-      return EDGAR.fetchSubmissions(criteria.cik).then(
-        (submissions) => submissions.filings.recent.filingDate
-      );
-    } else {
-      throw new Error("No CIK provided");
-    }
-  }
-
-  async findCIK(name: string) {
-    return this.fetchCIKByName(name);
-  }
-
   private static async fetchSubmissions(cik: string): Promise<Submissions> {
     if (!cik) throw new Error(`${cik} CIK`);
     const URL = `https://data.sec.gov/submissions/CIK${cik}.json`;
@@ -144,9 +124,10 @@ class EDGAR {
     });
   }
 
-  private async fetchCIKByName(name: string): Promise<string> {
+  private async fetchCIKByName(name: string): Promise<string | undefined> {
     return EDGAR.fetchCompanyResponse(name).then((response) => {
-      return response.feed["company-info"].cik;
+      const companyInfo = response.feed["company-info"];
+      return companyInfo?.cik;
     });
   }
 

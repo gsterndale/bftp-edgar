@@ -47,7 +47,7 @@ class Portfolio {
   async companies(conditions = defaultConditions): Promise<Company[]> {
     const soql = Portfolio.conditionsToSOQL(conditions);
     const accounts = (await this.query("Account", soql)) as AccountRecord[];
-    return accounts.map((record) => Portfolio.accountToCompany(record));
+    return accounts.map((record) => Portfolio.accountRecordToCompany(record));
   }
 
   async addCompanyFilings(
@@ -64,6 +64,30 @@ class Portfolio {
         return filing;
       })
     );
+  }
+
+  async addCompanyCIK(company: Company, cik: string): Promise<string> {
+    const updatedCompany: Company = { ...company, cik: cik };
+    const record = Portfolio.companyToAccountRecord(updatedCompany);
+    const fields = { Id: record.Id, CIK__c: record.CIK__c };
+    await this.update("Account", fields);
+    return cik;
+  }
+
+  private async update(
+    sobject: string,
+    fields: Record
+  ): Promise<SuccessResult> {
+    let conn = await this.authenticatedConn();
+    if (!fields.Id) throw new Error(`Id required to update ${sobject}`);
+    const result = await conn.sobject(sobject).update(fields, (err) => {
+      if (err) throw new Error(err.message);
+    });
+    if (result.success && result.id !== undefined) {
+      return result;
+    } else {
+      throw new Error("Error creating object");
+    }
   }
 
   private async create(
@@ -98,15 +122,24 @@ class Portfolio {
     return records || [];
   }
 
-  private static accountToCompany(record: AccountRecord): Company {
-    const filings = (record.Filings__r || { records: [] })
+  private static accountRecordToCompany(record: AccountRecord): Company {
+    const filingRecords = (record.Filings__r || { records: [] })
       .records as FilingRecord[];
     return {
       id: record.Id,
       name: record.Name,
       cik: record.CIK__c,
       active: record.Active__c,
-      filings: filings.map((record) => this.filingRecordToFiling(record)),
+      filings: filingRecords.map((record) => this.filingRecordToFiling(record)),
+    };
+  }
+
+  private static companyToAccountRecord(company: Company): AccountRecord {
+    return {
+      Id: company.id,
+      Name: company.name,
+      CIK__c: company.cik,
+      Active__c: company.active as "Yes" | "No" | undefined,
     };
   }
 
