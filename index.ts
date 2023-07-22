@@ -6,8 +6,6 @@ const findCIKs = async (event: APIGatewayProxyEvent, context: Context) => {
   const portfolio = new Portfolio();
   const companies = await portfolio.companies({ active: true, cik: null });
   console.log(companies);
-  // If any are found, send an email alert with the suggested CIK(s)
-  // https://www.serverless.com/examples/aws-ses-serverless-example
 };
 
 const findFilings = async (event: APIGatewayProxyEvent, context: Context) => {
@@ -21,7 +19,7 @@ const findFilings = async (event: APIGatewayProxyEvent, context: Context) => {
         portfolio
           .addCompanyFilings(company, newFilings)
           .then((addedFilings) => {
-            console.log({ [company.name]: { addedFilings } });
+            console.log({ [company.name]: addedFilings });
           });
       })
     )
