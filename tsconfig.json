@@ -9,5 +9,12 @@
       "forceConsistentCasingInFileNames": true,
       "moduleResolution": "node",
       "composite": true
-    }
+    },
+    "ts-node": {
+      "files": true
+    },
+    "files": [
+      "index.ts",
+      "company.d.ts"
+    ]
   }

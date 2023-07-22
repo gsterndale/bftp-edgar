@@ -74,6 +74,73 @@ class Portfolio {
     return cik;
   }
 
+  async validateSchema(): Promise<boolean> {
+    let conn = await this.authenticatedConn();
+    const accountDescription = await conn.sobject("Account").describe((err) => {
+      if (err) throw new Error(err.message);
+    });
+    const accountFields = accountDescription.fields;
+
+    const activeField = accountFields.find((fld) => fld.name === "Active__c");
+    if (!activeField) throw new Error("No Active field on Account");
+    if (activeField.type !== "picklist")
+      throw new Error(
+        `Account Active field type is ${activeField.type} not picklist`
+      );
+    const plvs = activeField.picklistValues || [];
+    if (!plvs.map((plv) => plv.value).includes("Yes"))
+      throw new Error(
+        `Account Active field picklist values do not include "Yes"`
+      );
+
+    const cikField = accountFields.find((fld) => fld.name === "CIK__c");
+    if (!cikField) throw new Error("No CIK field on Account");
+    if (cikField.type !== "string")
+      throw new Error(`Account CIK field type is ${cikField.type} not text`);
+
+    if (cikField.length < 10)
+      throw new Error(
+        `Account CIK field length is ${cikField.length} which is less than 10`
+      );
+
+    const filingDescription = await conn
+      .sobject("Filing__c")
+      .describe((err) => {
+        if (err) throw new Error(err.message);
+      });
+    const filingFields = filingDescription.fields;
+
+    const nameField = filingFields.find((fld) => fld.name === "Name");
+    if (!nameField) throw new Error("No Name field on Filing");
+    if (!nameField.nameField)
+      throw new Error("Filing Name field is not actually the nameField");
+    if (nameField.type !== "string")
+      throw new Error(`Filing Name field type is ${nameField.type} not text`);
+
+    const accountField = filingFields.find((fld) => fld.name === "Account__c");
+    if (!accountField) throw new Error("No Account field on Filing");
+    if (accountField.type !== "reference")
+      throw new Error(
+        `Filing Account field type is ${accountField.type} not Master-Detail Relationship`
+      );
+    if (accountField.relationshipName !== "Account__r")
+      throw new Error(
+        `Filing Account field relationshipName is ${accountField.relationshipName} not Account__r`
+      );
+
+    const formField = filingFields.find((fld) => fld.name === "Form__c");
+    if (!formField) throw new Error("No Form field on Filing");
+    if (formField.type !== "string")
+      throw new Error(`Filing Form field type is ${formField.type} not text`);
+
+    const dateField = filingFields.find((fld) => fld.name === "Date__c");
+    if (!dateField) throw new Error("No Date field on Filing");
+    if (dateField.type !== "date")
+      throw new Error(`Filing Date field type is ${dateField.type} not date`);
+
+    return true;
+  }
+
   private async update(
     sobject: string,
     fields: Record

@@ -45,3 +45,14 @@ describe("addCompanyFilings", () => {
     expect(filings[0].id).not.toBeUndefined();
   });
 });
+
+describe("validate SalesForce Object & Field schema", () => {
+  let portfolio: Portfolio;
+  beforeEach(() => {
+    portfolio = new Portfolio();
+  });
+  test("adds new filing records to company", async () => {
+    const success = await portfolio.validateSchema();
+    expect(success).toBeTruthy();
+  });
+});

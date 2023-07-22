@@ -149,11 +149,19 @@ After running deploy, you should see output that includes something similar to:
 
 There is no additional step required. The scheduled scripts becomes active right away after deployment.
 
+### Validating SalesForce objects
+
+After creating the custom SalesForce objects and fields you can confirm that they're configured correctly and that authentication is working by running:
+
+```bash
+npm run validate
+```
+
 ### Local invocation
 
 In order to test out your functions locally, you can invoke them with the following command:
 
-```
+```bash
 serverless invoke local --function filingsHandler
 ```
 
@@ -165,8 +173,6 @@ npm run test
 
 ## TODO
 
-- [ ] update Accounts with likely CIKs
-- [ ] SalesForce "migration" script (or assumption checker)
 - [ ] Rate limit SEC API requests
 - [ ] stub HTTP requests for unit tests
 - [ ] Error handling
