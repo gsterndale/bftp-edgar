@@ -24,39 +24,40 @@ describe("finding new filings for a company", () => {
 
   test("is not empty for a company by name", async () => {
     let company: Company = {
-      name: "HeyKiddo",
+      name: "Salesforce, Inc.",
       filings: [],
     };
     expect.assertions(2);
     const filings = await edgar.findNewFilings(company);
     expect(filings.length).toBeGreaterThanOrEqual(1);
-    expect(filings[0].number).toBe("021-485261");
+    const numbers = filings.map((filing) => filing.number);
+    expect(numbers.includes("0001127602-23-019366")).toBeTruthy();
   });
 
   test("is not empty for a company by CIK", async () => {
     let company: Company = {
-      name: "HeyKiddo",
-      cik: "0001978342",
+      name: "Salesforce, Inc.",
+      cik: "0001108524",
       filings: [],
     };
     expect.assertions(2);
     const filings = await edgar.findNewFilings(company);
     expect(filings.length).toBeGreaterThanOrEqual(1);
     const numbers = filings.map((filing) => filing.number);
-    expect(numbers.includes("021-485261")).toBeTruthy();
+    expect(numbers.includes("0001127602-23-019366")).toBeTruthy();
   });
 
   test("does not include filings already known", async () => {
-    const number = "021-433765";
+    const number = "0001127602-23-019366";
     let company: Company = {
-      name: "ROAR for Good",
-      cik: "0001643039",
-      filings: [{ number: number, form: "D", date: "2022-2-16" }],
+      name: "Salesforce, Inc.",
+      cik: "0001108524",
+      filings: [{ number: number, form: "4", date: "2023-06-23" }],
     };
     expect.assertions(2);
-    const filings = await edgar.findNewFilings(company);
-    expect(filings.length).toBeGreaterThanOrEqual(1);
-    const numbers = filings.map((filing) => filing.number);
+    const newFilings = await edgar.findNewFilings(company);
+    expect(newFilings.length).toBeGreaterThanOrEqual(1);
+    const numbers = newFilings.map((filing) => filing.number);
     expect(numbers.includes(number)).not.toBeTruthy();
   });
 });

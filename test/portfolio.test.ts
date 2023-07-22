@@ -25,7 +25,7 @@ describe("addCompanyFilings", () => {
 
   test("adds new filing records to company", async () => {
     let company: Company = {
-      id: "001Hu00002uRmlcIAC",
+      id: "001Hu00002uSBSLIA4",
       name: "Salesforce, Inc.",
       cik: "0001108524",
       filings: [],
