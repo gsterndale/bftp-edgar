@@ -170,10 +170,3 @@ serverless invoke local --function filingsHandler
 ```bash
 npm run test
 ```
-
-## TODO
-
-- [ ] Rate limit SEC API requests
-- [ ] stub HTTP requests for unit tests
-- [ ] Error handling
-- [ ] Dead man's snitch
