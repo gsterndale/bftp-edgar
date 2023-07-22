@@ -1,130 +1,138 @@
-<!--
-title: 'AWS Node Scheduled Cron example in NodeJS'
-description: 'This is an example of creating a function that runs as a cron job using the serverless ''schedule'' event.'
-layout: Doc
-framework: v3
-platform: AWS
-language: nodeJS
-priority: 1
-authorLink: 'https://github.com/0dj0bz'
-authorName: 'Rob Abbott'
-authorAvatar: 'https://avatars3.githubusercontent.com/u/5679763?v=4&s=140'
--->
+# SEC filing sync
 
-# Serverless Framework Node Scheduled Cron on AWS
+This project helps keep SalesForce Account records up-to-date with SEC filings.
 
-This template demonstrates how to develop and deploy a simple cron-like service running on AWS Lambda using the traditional Serverless Framework.
+## Implementation
 
-## Schedule event type
+On a regular schedule (daily) a script is run that will:
 
-This examples defines two functions, `cron` and `secondCron`, both of which are triggered by an event of `schedule` type, which is used for configuring functions to be executed at specific time or in specific intervals. For detailed information about `schedule` event, please refer to corresponding section of Serverless [docs](https://serverless.com/framework/docs/providers/aws/events/schedule/).
+1. pull active SalesForce Account records that have a [CIK](https://www.sec.gov/page/edgar-how-do-i-look-central-index-key-cik-number) specified
+2. query the SEC [EDGAR](https://www.sec.gov/filings/edgar-guide) API for filings
+3. create new Filing records associated with the proper Account on SalesForce
 
-When defining `schedule` events, we need to use `rate` or `cron` expression syntax.
+Also on a regular schedule (30 days) a script is run that will:
 
-### Rate expressions syntax
+1. pull active SalesForce Account records _without_ a [CIK](https://www.sec.gov/page/edgar-how-do-i-look-central-index-key-cik-number) specified
+2. query the SEC [EDGAR](https://www.sec.gov/filings/edgar-guide) API by company name
+3. update the SalesForce Account record with the likely CIK if found.
 
-```pseudo
-rate(value unit)
+## Assumptions
+
+SEC company CIKs are unique.
+
+The combination of Filing form type (e.g. "D"), date, and accession number is unique, at least for a given company.
+
+This project respects the SEC EDGAR API [rate limiting and access requirements](https://www.sec.gov/os/webmaster-faq#code-support) including the specified "User Agent" in HTTP requests.
+
+The SEC EDGAR and SalesForce APIs don't change!
+
+## SalesForce setup
+
+For this project to work, please create the following in the SalesForce Object Manager:
+
+### Custom fields on Account records:
+
+| Field Name | Data Type  | Description                                                                                               | Example    |
+| ---------- | ---------- | --------------------------------------------------------------------------------------------------------- | ---------- |
+| CIK        | `text`     | unique SEC [Central Index Key](https://www.sec.gov/page/edgar-how-do-i-look-central-index-key-cik-number) | 0001108524 |
+| Active     | `picklist` | flags records that should be kept up-to-date with a `Yes` value                                           | Yes        |
+
+### A custom Object named "Filing" with the following required fields:
+
+| Field Name | Data Type                    | Description                                                                                                              | Example              |
+| ---------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------- |
+| Name       | `text`                       | SalesForce required field where we'll store the [filing "accession number"](https://www.sec.gov/os/accessing-edgar-data) | 0001193125-15-118890 |
+| Account    | `Master-Detail Relationship` | associated SalesForce Account ID                                                                                         | 001Hu00002uRmekIAC   |
+| Form       | `text`                       | SEC [Form "Number"](https://www.sec.gov/forms)                                                                           | D                    |
+| Date       | `date`                       | Date of filed with the SEC                                                                                               | 2/16/2022            |
+
+### Workflow automation:
+
+In SalesForce, users can create and configure a Workflow Rule associated with Filing objects, with an Email Alert Action, that will run when a new Filing is created for "Active" Accounts.
+
+A simple Classic Email Template might look like this:
+
+```
+We found that {!Account.Name} has a filed form type {!Filing__c.Form__c} with the SEC on {!Filing__c.Date__c}.
 ```
 
-`value` - A positive number
+## Developer setup
 
-`unit` - The unit of time. ( minute | minutes | hour | hours | day | days )
+### Tooling
 
-In below example, we use `rate` syntax to define `schedule` event that will trigger our `rateHandler` function every minute
+This project makes use of:
 
-```yml
-functions:
-  rateHandler:
-    handler: handler.run
-    events:
-      - schedule: rate(1 minute)
+- [TypeScript](https://www.typescriptlang.org) to provide static typing for [JavaScript](https://en.wikipedia.org/wiki/JavaScript)
+- [Node.js](https://nodejs.org) JavaScript runtime environment
+- [Jest](https://jestjs.io) for unit testing
+- [asdf](https://asdf-vm.com) for tool version management
+- [direnv](https://direnv.net) to load ENV variables based on the current directory
+- [Serverless Framework](https://www.serverless.com) to deploy on [AWS Lambda](https://aws.amazon.com/lambda/).
+
+### Install
+
+Clone this repo and run the following:
+
+```bash
+asdf install
+npm install
+cp .envrc.example .envrc
+vim .envrc
+direnv allow .
 ```
 
-Detailed information about rate expressions is available in official [AWS docs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions).
+### Authentication
 
-### Cron expressions syntax
+In order to authenticate with the SalesForce, generate a security token for the user that will be consuming the API.
 
-```pseudo
-cron(Minutes Hours Day-of-month Month Day-of-week Year)
+Secrets are stored as ENV variables and should **not** be committed to this repository. An `.envrc.example` file _is_ committed, and should be copied and updated with the proper values including:
+
+- SalesForce security token
+- SalesForce username
+- SalesForce password
+- SalesForce URL
+- SEC EDGAR User Agent e.g. "Acme Inc. jane@acme.com"
+
+Any time you update `.envrc` you'll need to tell `direnv` that the changes you made are safe.
+
+```bash
+direnv allow .
 ```
-
-All fields are required and time zone is UTC only.
-
-| Field        |     Values      |   Wildcards    |
-| ------------ | :-------------: | :------------: |
-| Minutes      |      0-59       |    , - \* /    |
-| Hours        |      0-23       |    , - \* /    |
-| Day-of-month |      1-31       | , - \* ? / L W |
-| Month        | 1-12 or JAN-DEC |    , - \* /    |
-| Day-of-week  | 1-7 or SUN-SAT  | , - \* ? / L # |
-| Year         |     192199      |    , - \* /    |
-
-In below example, we use `cron` syntax to define `schedule` event that will trigger our `cronHandler` function every second minute every Monday through Friday
-
-```yml
-functions:
-  cronHandler:
-    handler: handler.run
-    events:
-      - schedule: cron(0/2 * ? * MON-FRI *)
-```
-
-Detailed information about cron expressions in available in official [AWS docs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#CronExpressions).
-
-## Usage
 
 ### Deployment
 
-This example is made to work with the Serverless Framework dashboard, which includes advanced features such as CI/CD, monitoring, metrics, etc.
+This project works with the [Serverless Framework](https://www.serverless.com/) to deploy on AWS Lambda.
 
-In order to deploy with dashboard, you need to first login with:
+Serverless configuration lives in `serverless.yml`. The `org` is specified there and should be changed to reflect your org.
 
-```
+In order to deploy, you need to first login with:
+
+```bash
 serverless login
 ```
 
-and then perform deployment with:
+Perform deployment with:
 
-```
+```bash
 serverless deploy
 ```
 
-After running deploy, you should see output similar to:
+Note that this command will use the ENV variables configured in your local environment for production.
+
+After running deploy, you should see output that includes something similar to:
 
 ```bash
-Deploying aws-node-scheduled-cron-project to stage dev (us-east-1)
-
-✔ Service deployed to stack aws-node-scheduled-cron-project-dev (205s)
-
-functions:
-  rateHandler: aws-node-scheduled-cron-project-dev-rateHandler (2.9 kB)
-  cronHandler: aws-node-scheduled-cron-project-dev-cronHandler (2.9 kB)
+✔ Service deployed to stack bftp-edgar-dev (100s)
 ```
 
-There is no additional step required. Your defined schedules becomes active right away after deployment.
+There is no additional step required. The scheduled scripts becomes active right away after deployment.
 
 ### Local invocation
 
 In order to test out your functions locally, you can invoke them with the following command:
 
 ```
-serverless invoke local --function rateHandler
-```
-
-After invocation, you should see output similar to:
-
-```bash
-Your cron function "aws-node-scheduled-cron-dev-rateHandler" ran at Fri Mar 05 2021 15:14:39 GMT+0100 (Central European Standard Time)
-```
-
-### Setup
-
-```bash
-asdf install
-npm install
-direnv allow .
-cp .envrc.example .envrc
+serverless invoke local --function filingsHandler
 ```
 
 ### Test
@@ -132,3 +140,12 @@ cp .envrc.example .envrc
 ```bash
 npm run test
 ```
+
+## TODO
+
+- [ ] update Accounts with likely CIKs
+- [ ] SalesForce "migration" script (or assumption checker)
+- [ ] Rate limit SEC API requests
+- [ ] stub HTTP requests for unit tests
+- [ ] Error handling
+- [ ] Dead man's snitch

@@ -1,8 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
 import { Portfolio } from "../src/portfolio";
 
-// TODO mock Salesforce requests?
-
 describe("companies", () => {
   let portfolio: Portfolio;
 

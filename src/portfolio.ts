@@ -1,16 +1,6 @@
 import { Condition } from "aws-lambda";
 import { Connection, Record, RecordResult, SuccessResult } from "jsforce";
 
-// SalesForce assumptions:
-// Custom CIK text field on Account
-// Custom Active text field on Account with value "Yes"
-// Security token generated for the user authenticating
-// Custom Object created for Filing with the following required fields:
-//   - File Number, text
-//   - Account, Master-Detail Relationship
-//   - Form, text D, D/A
-//   - Date, date
-// In SalesForce, users can create and configure a workflow to send email alerts upon creation of a new Filing.
 // The following SalesForce info is stored in ENV vars:
 const SECURITYTOKEN = process.env.SF_SECURITY_TOKEN || "";
 const USERNAME = process.env.SF_USERNAME || "";
