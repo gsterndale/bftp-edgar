@@ -1,6 +1,8 @@
 import { describe, expect, test } from "@jest/globals";
 import { EDGAR } from "../src/edgar";
 
+EDGAR.rateLimit = 10000000;
+
 describe("finding a company's CIK by name", () => {
   let edgar: EDGAR;
 

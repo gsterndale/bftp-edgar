@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import Bottleneck from "bottleneck";
 
 const UA = process.env.EDGAR_UA || "";
 
@@ -39,6 +40,11 @@ type CompanyResponse = {
 };
 
 class EDGAR {
+  static rateLimit: number = parseFloat(process.env.EDGAR_RATE_LIMIT ?? "10"); // requests per second
+  static limiter = new Bottleneck({
+    minTime: (1.0 / this.rateLimit) * 1000, // ms
+  });
+
   async findCIK(name: string): Promise<string | undefined> {
     return this.fetchCIKByName(name);
   }
@@ -121,10 +127,12 @@ class EDGAR {
     url: string,
     options = this.fetchOptions
   ): Promise<Response> {
-    return fetch(url, options).then((response) => {
-      if (!response.ok) throw new Error(response.statusText);
-      return response;
-    });
+    return this.limiter
+      .schedule(() => fetch(url, options))
+      .then((response) => {
+        if (!response.ok) throw new Error(response.statusText);
+        return response;
+      });
   }
   private static async fetchCompanyResponse(name: string) {
     const parser = new XMLParser({ parseTagValue: false });
