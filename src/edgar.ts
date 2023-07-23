@@ -98,25 +98,34 @@ class EDGAR {
     );
   }
 
+  private static fetchOptions = {
+    headers: { "User-Agent": UA },
+  };
+
   private static async fetchSubmissions(cik: string): Promise<Submissions> {
     if (!cik) throw new Error(`${cik} CIK`);
-    const URL = `https://data.sec.gov/submissions/CIK${cik}.json`;
-    const response = await fetch(URL, {
-      headers: { "User-Agent": UA },
-    });
-    if (!response.ok) throw new Error(response.statusText);
-    return await (response.json() as Promise<Submissions>);
+    const url = `https://data.sec.gov/submissions/CIK${cik}.json`;
+    return this.request(url).then(
+      (response) => response.json() as Promise<Submissions>
+    );
   }
 
   private static async fetchCompanyByName(name: string): Promise<string> {
-    const URL = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${name}&type=&dateb=&owner=include&start=0&count=40&output=atom`;
-    const response = await fetch(URL, {
-      headers: { "User-Agent": UA },
-    });
-    if (!response.ok) throw new Error(response.statusText);
-    return await (response.text() as Promise<string>);
+    const url = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${name}&type=&dateb=&owner=include&start=0&count=40&output=atom`;
+    return this.request(url).then(
+      (response) => response.text() as Promise<string>
+    );
   }
 
+  private static async request(
+    url: string,
+    options = this.fetchOptions
+  ): Promise<Response> {
+    return fetch(url, options).then((response) => {
+      if (!response.ok) throw new Error(response.statusText);
+      return response;
+    });
+  }
   private static async fetchCompanyResponse(name: string) {
     const parser = new XMLParser({ parseTagValue: false });
     return EDGAR.fetchCompanyByName(name).then((xmlString) => {
