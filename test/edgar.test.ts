@@ -6,8 +6,10 @@ import path from "path";
 EDGAR.rateLimit = 10000000;
 
 import soFetch from "./soFetch";
-const gretchen = soFetch({});
-
+const gretchen = soFetch({
+  missingEntryStrategy: "error",
+  recordNewEntries: false,
+});
 beforeAll(() => {
   gretchen.start();
 });
@@ -42,7 +44,7 @@ describe("finding new filings for a company", () => {
     const filings = await edgar.findNewFilings(company);
     expect(filings.length).toBeGreaterThanOrEqual(1);
     const numbers = filings.map((filing) => filing.number);
-    expect(numbers.includes("0001127602-23-019366")).toBeTruthy();
+    expect(numbers.includes("0001127602-23-021240")).toBeTruthy();
   });
 
   test("is not empty for a company by CIK", async () => {

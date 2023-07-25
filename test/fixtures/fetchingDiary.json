@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "req": {
+        "input": "http://localhost:8080",
+        "options": {}
+      },
+      "res": {
+        "body": "*tap* *tap* is this thing on?",
+        "options": {
+          "headers": {},
+          "status": 200,
+          "statusText": "OK"
+        }
+      }
+    }
+  ]
+}
