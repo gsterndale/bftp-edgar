@@ -153,7 +153,7 @@ class Portfolio {
     if (result.success && result.id !== undefined) {
       return result;
     } else {
-      throw new Error("Error creating object");
+      throw new Error("Error updating object");
     }
   }
 
@@ -182,9 +182,8 @@ class Portfolio {
   private async query(sobject: string, soql: SOQL): Promise<Record[]> {
     let conn = await this.authenticatedConn();
     const query = conn.sobject(sobject).find(soql).include("Filings__r"); // include child relationship records in query result.
-    const records = await query.execute(undefined, (err, records) => {
+    const records = await query.execute(undefined, (err) => {
       if (err) throw new Error(err.message);
-      return records;
     });
     return records || [];
   }
