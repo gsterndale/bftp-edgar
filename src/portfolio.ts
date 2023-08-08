@@ -1,279 +1,117 @@
-import { Condition } from "aws-lambda";
-import { Connection, Record, RecordResult, SuccessResult } from "jsforce";
+import { google } from "googleapis";
 
-// The following SalesForce info is stored in ENV vars:
-const SECURITYTOKEN = process.env.SF_SECURITY_TOKEN || "";
-const USERNAME = process.env.SF_USERNAME || "";
-const PASSWORD = process.env.SF_PASSWORD || "";
-const URL = process.env.SF_URL || "";
+const GOOGLE_SERVICE_ACCOUNT_EMAIL =
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
+const GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY =
+  process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "";
+const GOOGLE_SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || "";
 
-type FilingRecord = {
-  Id?: string;
-  Form__c: string; // Form Type e.g. D or D/A
-  Date__c: string; // YYYY-MM-DD e.g. 2022-02-16
-  Name: string; // Unique SEC Filing Number
-  Account__c: string; // AccountRecord ID
+type FilingMap = {
+  [key: string]: Filing[];
 };
 
-type Relationship = {
-  totalSize: number;
-  records: Record[];
-};
-
-type AccountRecord = {
-  Id?: string;
-  Name: string;
-  CIK__c?: string;
-  Active__c?: "Yes" | "No";
-  Filings__r?: Relationship;
-};
-
-type Conditions = {
-  active?: boolean | null;
-  cik?: boolean | null | string;
-  name?: boolean | null | string;
-};
-const defaultConditions: Conditions = { active: true };
-
-type SOQL = {
-  Active__c?: string | object | null;
-  CIK__c?: string | object | null;
-  Name?: string | object | null;
-};
+type Row = any[];
 
 class Portfolio {
-  private conn = new Connection({ loginUrl: URL });
-
-  async companies(conditions = defaultConditions): Promise<Company[]> {
-    const soql = Portfolio.conditionsToSOQL(conditions);
-    const accounts = (await this.query("Account", soql)) as AccountRecord[];
-    return accounts.map((record) => Portfolio.accountRecordToCompany(record));
+  async companies(): Promise<Company[]> {
+    const companyRows = await this.getRows("Companies!A2:D");
+    const filingRows = await this.getRows("Filings!A2:D");
+    const filingsByCIK = filingRows.reduce((memo, filingRow, index) => {
+      const cik = filingRow[0] as string;
+      if (memo[cik] === undefined) memo[cik] = [];
+      memo[cik].push(this.rowToFiling(filingRow, index + 2)); // adding two because of header row and 1-indexed
+      return memo;
+    }, {} as FilingMap);
+    const companies: Company[] = companyRows.map((row, index) => {
+      const cik = row[3] as string;
+      const filings = filingsByCIK[cik] || [];
+      const name = row[2] as string;
+      return { id: index + 2, name: name, cik: cik, filings: filings };
+    });
+    return companies;
   }
 
-  async addCompanyFilings(
-    company: Company,
-    filings: Filing[]
-  ): Promise<Filing[]> {
-    return Promise.all(
-      filings.map(async (filing) => {
-        const result = await this.create(
-          "Filing__c",
-          Portfolio.filingToFilingRecord(filing, company)
-        );
-        filing.id = result.id;
-        return filing;
+  async addFilings(filings: Filing[]): Promise<Filing[]> {
+    const rows = filings.map((filing: Filing) => this.filingToRow(filing));
+    const updatedRows = await this.appendRows("Filings!A2:D", rows);
+    const updatedFilings = updatedRows.map((row: any[]) => {
+      return this.rowToFiling(row);
+    });
+    return updatedFilings;
+  }
+  async addCompanyCIK(company: Company, cik: string) {
+    this.updateRows(`Companies!D${company.id}:D`, [[cik]]);
+  }
+
+  private async updateRows(range: string, rows: Row[]) {
+    this.sheets.spreadsheets.values.update({
+      spreadsheetId: GOOGLE_SPREADSHEET_ID,
+      range: range,
+      valueInputOption: "USER_ENTERED",
+      includeValuesInResponse: true,
+      requestBody: {
+        values: rows,
+      },
+    });
+  }
+
+  private async appendRows(range: string, rows: Row[]) {
+    if (rows.length === 0) return [];
+    return this.sheets.spreadsheets.values
+      .append({
+        spreadsheetId: GOOGLE_SPREADSHEET_ID,
+        range: range,
+        valueInputOption: "USER_ENTERED",
+        includeValuesInResponse: true,
+        requestBody: {
+          values: rows,
+        },
       })
-    );
-  }
-
-  async addCompanyCIK(company: Company, cik: string): Promise<string> {
-    const updatedCompany: Company = { ...company, cik: cik };
-    const record = Portfolio.companyToAccountRecord(updatedCompany);
-    const fields = { Id: record.Id, CIK__c: record.CIK__c };
-    await this.update("Account", fields);
-    return cik;
-  }
-
-  async validateSchema(): Promise<boolean> {
-    let conn = await this.authenticatedConn();
-    const accountDescription = await conn.sobject("Account").describe((err) => {
-      if (err) throw new Error(err.message);
-    });
-    const accountFields = accountDescription.fields;
-
-    const activeField = accountFields.find((fld) => fld.name === "Active__c");
-    if (!activeField) throw new Error("No Active field on Account");
-    if (activeField.type !== "picklist")
-      throw new Error(
-        `Account Active field type is ${activeField.type} not picklist`
-      );
-    const plvs = activeField.picklistValues || [];
-    if (!plvs.map((plv) => plv.value).includes("Yes"))
-      throw new Error(
-        `Account Active field picklist values do not include "Yes"`
-      );
-
-    const cikField = accountFields.find((fld) => fld.name === "CIK__c");
-    if (!cikField) throw new Error("No CIK field on Account");
-    if (cikField.type !== "string")
-      throw new Error(`Account CIK field type is ${cikField.type} not text`);
-
-    if (cikField.length < 10)
-      throw new Error(
-        `Account CIK field length is ${cikField.length} which is less than 10`
-      );
-
-    const filingDescription = await conn
-      .sobject("Filing__c")
-      .describe((err) => {
-        if (err) throw new Error(err.message);
+      .then((resp) => {
+        return resp.data.updates?.updatedData?.values || [];
+      })
+      .catch((reason) => {
+        throw new Error(reason);
       });
-    const filingFields = filingDescription.fields;
-
-    const nameField = filingFields.find((fld) => fld.name === "Name");
-    if (!nameField) throw new Error("No Name field on Filing");
-    if (!nameField.nameField)
-      throw new Error("Filing Name field is not actually the nameField");
-    if (nameField.type !== "string")
-      throw new Error(`Filing Name field type is ${nameField.type} not text`);
-
-    const accountField = filingFields.find((fld) => fld.name === "Account__c");
-    if (!accountField) throw new Error("No Account field on Filing");
-    if (accountField.type !== "reference")
-      throw new Error(
-        `Filing Account field type is ${accountField.type} not Master-Detail Relationship`
-      );
-    if (accountField.relationshipName !== "Account__r")
-      throw new Error(
-        `Filing Account field relationshipName is ${accountField.relationshipName} not Account__r`
-      );
-
-    const formField = filingFields.find((fld) => fld.name === "Form__c");
-    if (!formField) throw new Error("No Form field on Filing");
-    if (formField.type !== "string")
-      throw new Error(`Filing Form field type is ${formField.type} not text`);
-
-    const dateField = filingFields.find((fld) => fld.name === "Date__c");
-    if (!dateField) throw new Error("No Date field on Filing");
-    if (dateField.type !== "date")
-      throw new Error(`Filing Date field type is ${dateField.type} not date`);
-
-    return true;
   }
 
-  private async update(
-    sobject: string,
-    fields: Record
-  ): Promise<SuccessResult> {
-    let conn = await this.authenticatedConn();
-    if (!fields.Id) throw new Error(`Id required to update ${sobject}`);
-    const result = await conn.sobject(sobject).update(fields, (err) => {
-      if (err) throw new Error(err.message);
-    });
-    if (result.success && result.id !== undefined) {
-      return result;
-    } else {
-      throw new Error("Error updating object");
-    }
+  private async getRows(range: string) {
+    return this.sheets.spreadsheets.values
+      .get({
+        spreadsheetId: GOOGLE_SPREADSHEET_ID,
+        range: range,
+      })
+      .then((res) => {
+        return res.data.values || [];
+      })
+      .catch((reason) => {
+        throw new Error(reason);
+      });
   }
 
-  private async create(
-    sobject: string,
-    fields: object
-  ): Promise<SuccessResult> {
-    let conn = await this.authenticatedConn();
-    const result = await conn.sobject(sobject).create(fields, (err) => {
-      if (err) throw new Error(err.message);
-    });
-    if (result.success && result.id !== undefined) {
-      return result;
-    } else {
-      throw new Error("Error creating object");
-    }
+  private client = new google.auth.JWT({
+    email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+
+  private sheets = google.sheets({
+    version: "v4",
+    auth: this.client,
+  });
+
+  private filingToRow(filing: Filing): Row {
+    return [filing.cik, filing.number, filing.date, filing.form];
   }
 
-  private async authenticatedConn() {
-    await this.conn.login(USERNAME, PASSWORD + SECURITYTOKEN, (err) => {
-      if (err) throw new Error(err.message);
-    });
-    return this.conn;
-  }
-
-  private async query(sobject: string, soql: SOQL): Promise<Record[]> {
-    let conn = await this.authenticatedConn();
-    const query = conn.sobject(sobject).find(soql).include("Filings__r"); // include child relationship records in query result.
-    const records = await query.execute(undefined, (err) => {
-      if (err) throw new Error(err.message);
-    });
-    return records || [];
-  }
-
-  private static accountRecordToCompany(record: AccountRecord): Company {
-    const filingRecords = (record.Filings__r || { records: [] })
-      .records as FilingRecord[];
+  private rowToFiling(row: Row, index?: number): Filing {
     return {
-      id: record.Id,
-      name: record.Name,
-      cik: record.CIK__c,
-      active: record.Active__c,
-      filings: filingRecords.map((record) => this.filingRecordToFiling(record)),
+      id: index,
+      cik: row[0],
+      number: row[1],
+      date: row[2],
+      form: row[3],
     };
-  }
-
-  private static companyToAccountRecord(company: Company): AccountRecord {
-    return {
-      Id: company.id,
-      Name: company.name,
-      CIK__c: company.cik,
-      Active__c: company.active as "Yes" | "No" | undefined,
-    };
-  }
-
-  private static filingRecordToFiling(record: FilingRecord): Filing {
-    return {
-      id: record.Id,
-      form: record.Form__c,
-      date: record.Date__c,
-      number: record.Name,
-    };
-  }
-
-  private static filingToFilingRecord(
-    filing: Filing,
-    company: Company
-  ): FilingRecord {
-    if (company.id === undefined)
-      throw new Error(`Company ${company.name} has no ID`);
-    return {
-      Id: filing.id,
-      Name: filing.number,
-      Form__c: filing.form,
-      Date__c: filing.date,
-      Account__c: company.id,
-    };
-  }
-
-  private static conditionsToSOQL(conditions: Conditions): SOQL {
-    var soql: SOQL = {};
-    soql.Active__c = (() => {
-      switch (conditions.active) {
-        case true:
-          return "Yes";
-        case false:
-          return "No";
-        case null:
-          return null;
-      }
-    })();
-
-    soql.CIK__c = (() => {
-      switch (conditions.cik) {
-        case true:
-          return { $ne: null };
-        case false:
-          return null;
-        case null:
-          return null;
-        default:
-          return conditions.cik;
-      }
-    })();
-
-    soql.Name = (() => {
-      switch (conditions.name) {
-        case true:
-          return { $ne: null };
-        case false:
-          return null;
-        case null:
-          return null;
-        default:
-          return conditions.name;
-      }
-    })();
-
-    return soql;
   }
 }
-
 export { Portfolio };

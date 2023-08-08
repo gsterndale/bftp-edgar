@@ -76,6 +76,7 @@ class EDGAR {
       return submissions.filings.recent.filingDate.reduce(
         (memo: Filing[], date: string, index: number) => {
           const filing: Filing = {
+            cik: cik,
             date: date,
             form: submissions.filings.recent.form[index],
             number: submissions.filings.recent.accessionNumber[index],
