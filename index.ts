@@ -17,6 +17,9 @@ const run = async (inputPath: string, outputPath: string = "filings.csv") => {
     };
     const companyFilings = await edgar.findFilings(company);
     filings.push(...companyFilings);
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+    process.stdout.write(`${filings.length} filings found.`);
   }
   const filingCSVContent = stringify(filings, {
     header: true,
@@ -29,6 +32,7 @@ const run = async (inputPath: string, outputPath: string = "filings.csv") => {
     ],
   });
   fs.writeFileSync(outputPath, filingCSVContent);
+  process.stdout.write(`\nWritten to ${outputPath}\n`);
 };
 
 if (process.argv.length < 3) throw new Error("No CSV file specified.");
