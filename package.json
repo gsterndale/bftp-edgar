@@ -1,25 +1,22 @@
 {
-  "name": "bftp-edgar",
+  "name": "bftp-edgar-csv",
   "version": "1.0.0",
-  "description": "Example of creating a function that runs as a cron job using the serverless `schedule` event",
+  "description": "Import a CSV with companies, export CSV with SEC filings.",
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.101",
     "@types/jest": "^29.5.3",
-    "serverless": "^3.33.0",
-    "serverless-offline": "^12.0.4",
-    "serverless-plugin-typescript": "^2.1.2",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.1",
     "typescript": "^4.7.4"
   },
   "dependencies": {
     "bottleneck": "^2.19.5",
-    "fast-xml-parser": "^4.2.5",
-    "googleapis": "^123.0.0"
+    "csv": "^6.3.1",
+    "fast-xml-parser": "^4.2.5"
   },
   "scripts": {
+    "filings": "ts-node .",
     "test": "jest"
   }
 }
