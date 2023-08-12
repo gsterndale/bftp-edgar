@@ -3,19 +3,24 @@ name: Manually run filings
 on:
   workflow_dispatch:
     inputs:
-      name:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: "Person to greet"
-        # Default value if no value is explicitly provided
-        default: "World"
-        # Input has to be provided for the workflow to run
+      companies:
+        description: "Companies.csv content"
+        default: ""
         required: true
-        # The data type of the input
         type: string
 
 jobs:
   filngs:
     runs-on: macos-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Write CSV to file
+        run: echo "${{ inputs.companies }}" > companies.csv
       - name: Query EDGAR
-        run: echo "TODO query EDGAR"
+        run: head companies.csv > filings.csv
+      - name: Archive filing results
+        uses: actions/upload-artifact@v3
+        with:
+          name: filings
+          path: filings.csv
