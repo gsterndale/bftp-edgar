@@ -13,6 +13,8 @@ jobs:
   filngs:
     runs-on: macos-latest
     steps:
+      - name: Install asdf & tools
+        uses: asdf-vm/actions/install@v2
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Install node dependencies
