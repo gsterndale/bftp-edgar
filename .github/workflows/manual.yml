@@ -23,7 +23,13 @@ jobs:
         run: npm install
       - name: Output CIKs
         run: echo "${{ inputs.cik }}"
+      - name: Output UA
+        env:
+          EDGAR_UA: ${{ secrets.EDGAR_UA }}
+        run: echo "$EDGAR_UA"
       - name: Query EDGAR
+        env:
+          EDGAR_UA: ${{ secrets.EDGAR_UA }}
         run: npm run filings "${{ inputs.cik }}" filings.csv
       - name: Archive filing results
         uses: actions/upload-artifact@v3
