@@ -26,21 +26,23 @@ class EDGAR {
   }
 
   static async fetchFilingsByCIK(cik: string): Promise<Filing[]> {
-    return EDGAR.fetchSubmissions(cik).then((submissions) => {
-      return submissions.filings.recent.filingDate.reduce(
-        (memo: Filing[], date: string, index: number) => {
-          const filing: Filing = {
-            cik: cik,
-            date: date,
-            form: submissions.filings.recent.form[index],
-            number: submissions.filings.recent.accessionNumber[index],
-          };
-          memo.push(filing);
-          return memo;
-        },
-        []
-      );
-    });
+    return EDGAR.fetchSubmissions(cik)
+      .then((submissions) => {
+        return submissions.filings.recent.filingDate.reduce(
+          (memo: Filing[], date: string, index: number) => {
+            const filing: Filing = {
+              cik: cik,
+              date: date,
+              form: submissions.filings.recent.form[index],
+              number: submissions.filings.recent.accessionNumber[index],
+            };
+            memo.push(filing);
+            return memo;
+          },
+          []
+        );
+      })
+      .catch(() => []); // swallow rejected promises i.e. errors
   }
 
   private static fetchOptions = {
@@ -62,8 +64,20 @@ class EDGAR {
     return this.limiter
       .schedule(() => fetch(url, options))
       .then((response) => {
-        if (!response.ok) throw new Error(`${response.statusText} ${url}`);
+        if (!response.ok) return Promise.reject(response);
         return response;
+      })
+      .catch((response) => {
+        response.text().then((body: string) => {
+          const message = [
+            url,
+            response.status,
+            response.statusText,
+            body,
+          ].join("\n");
+          console.warn(message);
+        });
+        return Promise.reject(response);
       });
   }
 }
