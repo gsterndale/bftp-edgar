@@ -15,9 +15,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: Install asdf & tools
-        uses: asdf-vm/actions/install@v2
-      - name: Install node dependencies
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: ""
+          check-latest: false
+          cache: "npm"
+      - name: Install dependencies
         run: npm install
       - name: Query EDGAR
         env:
