@@ -1,4 +1,6 @@
 import * as fs from "node:fs";
+import * as path from "path";
+import * as os from "os";
 import { stringify, parse } from "csv/sync"; // For simplicity we're using syncronous APIs
 import { EDGAR } from "./src/edgar";
 
@@ -35,5 +37,21 @@ const run = async (inputPath: string, outputPath: string = "filings.csv") => {
   process.stdout.write(`\nWritten to ${outputPath}\n`);
 };
 
-if (process.argv.length < 3) throw new Error("No CSV file specified.");
-run(process.argv[2], process.argv[3]);
+let inputPath: string;
+const inputPathOrCIK = process.argv[2];
+if (inputPathOrCIK === undefined)
+  throw new Error("No CSV file or CIK specified.");
+const exists = fs.existsSync(inputPathOrCIK);
+if (exists) {
+  inputPath = inputPathOrCIK;
+} else {
+  const companyCSVContent = stringify(
+    [["CIK Number"]].concat(inputPathOrCIK.split(",").map((cik) => [cik]))
+  );
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "EDGAR"));
+  inputPath = path.join(tmpDir, "companies.csv");
+  console.log(`Writing CIK(s) to ${inputPath}`);
+  fs.writeFileSync(inputPath, companyCSVContent);
+}
+const outputPath = process.argv[3]; // may be undefined
+run(inputPath, outputPath);

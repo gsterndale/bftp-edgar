@@ -3,8 +3,8 @@ name: Manually run filings
 on:
   workflow_dispatch:
     inputs:
-      companies:
-        description: "Companies.csv content"
+      cik:
+        description: "CIK list"
         default: ""
         required: true
         type: string
@@ -15,10 +15,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: Write CSV to file
-        run: echo "${{ inputs.companies }}" > companies.csv
+      - name: Output CIKs
+        run: echo "${{ inputs.ciks }}"
       - name: Query EDGAR
-        run: head companies.csv > filings.csv
+        run: npm run filings "${{ inputs.cik }}" filings.csv
       - name: Archive filing results
         uses: actions/upload-artifact@v3
         with:

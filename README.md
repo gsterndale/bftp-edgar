@@ -64,6 +64,12 @@ You can also specify the file you'd like the filings saved to:
 npm run filings /path/to/your/companies.csv /path/to/your/filings.csv
 ```
 
+You can also specify a list of CIK Numbers instead of a path to a companies CSV file:
+
+```bash
+npm run filings 0001652044,0001652045
+```
+
 ## Developer setup
 
 ### Tooling
