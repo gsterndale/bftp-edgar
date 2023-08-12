@@ -19,9 +19,7 @@ const run = async (inputPath: string, outputPath: string = "filings.csv") => {
     };
     const companyFilings = await edgar.findFilings(company);
     filings.push(...companyFilings);
-    process.stdout.clearLine(0);
-    process.stdout.cursorTo(0);
-    process.stdout.write(`${filings.length} filings found.`);
+    console.log(`${filings.length} filings found.`);
   }
   const filingCSVContent = stringify(filings, {
     header: true,
@@ -34,7 +32,7 @@ const run = async (inputPath: string, outputPath: string = "filings.csv") => {
     ],
   });
   fs.writeFileSync(outputPath, filingCSVContent);
-  process.stdout.write(`\nWritten to ${outputPath}\n`);
+  console.log(`\nFilings CSV written to ${outputPath}\n`);
 };
 
 let inputPath: string;
