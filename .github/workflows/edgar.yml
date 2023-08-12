@@ -1,4 +1,4 @@
-name: Manually run filings
+name: Query EDGAR for filings by CIKs
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
         type: string
 
 jobs:
-  filngs:
+  query-edgar:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
