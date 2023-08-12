@@ -17,16 +17,8 @@ jobs:
         uses: actions/checkout@v3
       - name: Install asdf & tools
         uses: asdf-vm/actions/install@v2
-      - name: Output node version
-        run: node --version
       - name: Install node dependencies
         run: npm install
-      - name: Output CIKs
-        run: echo "${{ inputs.cik }}"
-      - name: Output UA
-        env:
-          EDGAR_UA: ${{ secrets.EDGAR_UA }}
-        run: echo "$EDGAR_UA"
       - name: Query EDGAR
         env:
           EDGAR_UA: ${{ secrets.EDGAR_UA }}
