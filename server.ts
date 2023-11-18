@@ -27,7 +27,7 @@ app.get("/healthz", (req: Request, res: Response) => {
   return res.sendStatus(200);
 });
 
-const port = 3000; // Change this to the desired port number
+const port = parseFloat(process.env.PORT ?? "3000");
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
