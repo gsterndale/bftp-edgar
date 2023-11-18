@@ -68,6 +68,7 @@ class EDGAR {
         return response;
       })
       .catch((response) => {
+        console.warn({ response });
         response.text().then((body: string) => {
           const message = [
             url,
