@@ -26,23 +26,21 @@ class EDGAR {
   }
 
   static async fetchFilingsByCIK(cik: string): Promise<Filing[]> {
-    return EDGAR.fetchSubmissions(cik)
-      .then((submissions) => {
-        return submissions.filings.recent.filingDate.reduce(
-          (memo: Filing[], date: string, index: number) => {
-            const filing: Filing = {
-              cik: cik,
-              date: date,
-              form: submissions.filings.recent.form[index],
-              number: submissions.filings.recent.accessionNumber[index],
-            };
-            memo.push(filing);
-            return memo;
-          },
-          []
-        );
-      })
-      .catch(() => []); // swallow rejected promises i.e. errors
+    return EDGAR.fetchSubmissions(cik).then((submissions) => {
+      return submissions.filings.recent.filingDate.reduce(
+        (memo: Filing[], date: string, index: number) => {
+          const filing: Filing = {
+            cik: cik,
+            date: date,
+            form: submissions.filings.recent.form[index],
+            number: submissions.filings.recent.accessionNumber[index],
+          };
+          memo.push(filing);
+          return memo;
+        },
+        []
+      );
+    });
   }
 
   private static fetchOptions = {
