@@ -59,16 +59,13 @@ class EDGAR {
     url: string,
     options = this.fetchOptions
   ): Promise<Response> {
-    console.log({ url, options });
     return this.limiter
       .schedule(() => fetch(url, options))
       .then((response) => {
         if (!response.ok) return Promise.reject(response);
-        console.log({ response });
         return response;
       })
       .catch((response) => {
-        console.warn({ response });
         response.text().then((body: string) => {
           const message = [
             url,

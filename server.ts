@@ -17,9 +17,20 @@ app.get("/filings", async (req: Request, res: Response) => {
     };
     const companyFilings: Filing[] = await edgar.findFilings(company);
     return res.json({ filings: companyFilings });
-  } catch (error) {
-    console.error({ error });
-    return res.status(500).json({ error });
+  } catch (error: Response | any) {
+    let json: { status: number; statusText: string } = {
+      status: 500,
+      statusText: "Internal Server Error",
+    };
+
+    if (error instanceof Response) {
+      json.status = error.status;
+      json.statusText = error.statusText;
+    } else {
+      console.error(error);
+    }
+
+    return res.status(json.status).json(json);
   }
 });
 
