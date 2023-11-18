@@ -14,10 +14,10 @@
     "files": true
   },
   "files": [
-    "index.ts",
-    "company.d.ts"
+    "server.ts"
   ],
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "types/**/*.d.ts"
   ]
 }

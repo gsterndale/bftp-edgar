@@ -1,14 +1,25 @@
-# SEC filing sync
+# SEC filing API
 
-This project reads a CSV of company info and writes a CSV with SEC filings.
+This HTTP API responds to GET requests to like this `/filings?cik=0001138795` with a JSON object that contains a list of SEC filings like this:
 
-## Implementation
-
-Run a script is run that will:
-
-1. read a list of companies with their [CIK](https://www.sec.gov/page/edgar-how-do-i-look-central-index-key-cik-number)
-2. query the SEC [EDGAR](https://www.sec.gov/filings/edgar-guide) API for filings
-3. create new CSV with rows for each filng
+```json
+{
+  "filings": [
+    {
+      "cik": "0001138795",
+      "date": "2007-02-20",
+      "form": "REGDEX/A",
+      "number": "9999999997-07-007713"
+    },
+    {
+      "cik": "0001138795",
+      "date": "2006-09-11",
+      "form": "REGDEX",
+      "number": "9999999997-06-038277"
+    }
+  ]
+}
+```
 
 ## Assumptions
 
@@ -20,54 +31,16 @@ This project respects the SEC EDGAR API [rate limiting and access requirements](
 
 The SEC EDGAR API doesn't change!
 
-## CSV setup
-
-For this project to work, please perform the following steps:
-
-1. Create a new spreadsheet
-1. Format all cells as Plain Text
-1. Create the header rows below
-1. Add a row for every company you wish to find filings for
-1. Export a CSV
-
-### Companies:
-
-| Account ID | Account Name | Legal Name | CIK Number |
-| ---------- | ------------ | ---------- | ---------- |
-
-The script will export a CSV with the following format:
-
-### Filings:
-
-| CIK Number | File number | Filing date | Filing type |
-| ---------- | ----------- | ----------- | ----------- |
-
 #### Working with CIK Numbers
 
-CIK Numbers can have leading 0s, e.g. 0001652044. In order to retain them in your spreadsheets those columns will need to be formatted as text.
-
-If you'd like to use a filing CSV in Excel, import the data into a new spreadsheet, don't open the CSV file. While importing, make sure the column data format for the CIK column is "text".
-
-If you'd like to use a filing CSV in Google Sheets, import the data into a new spreadsheet, don't open the CSV file. While importing, make sure to uncheck the box saying "convert text to numbers...".
+CIK Numbers can have leading 0s, e.g. 0001652044. Make sure they are included in the CIK specified in your GET request.
 
 ## Running the script
 
-This project is designed to run locally, not in the cloud. You can invoke the script with the following command:
+This project can be run locally like so:
 
 ```bash
-npm run filings /path/to/your/companies.csv
-```
-
-You can also specify the file you'd like the filings saved to:
-
-```bash
-npm run filings /path/to/your/companies.csv /path/to/your/filings.csv
-```
-
-You can also specify a list of CIK Numbers instead of a path to a companies CSV file:
-
-```bash
-npm run filings 0001652044,0001652045
+npm start
 ```
 
 ## Developer setup
