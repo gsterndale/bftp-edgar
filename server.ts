@@ -1,10 +1,11 @@
 import express, { Request, Response } from "express";
 import { EDGAR } from "./src/edgar";
+var o2x = require("object-to-xml");
 
 const app = express();
 const edgar = new EDGAR();
 
-app.get("/filings", async (req: Request, res: Response) => {
+app.get("/filings.?:format?", async (req: Request, res: Response) => {
   const cik = req.query.cik as string;
   if (!cik) {
     return res.status(400).json({ error: "Missing CIK parameter" });
@@ -16,7 +17,18 @@ app.get("/filings", async (req: Request, res: Response) => {
       cik: cik,
     };
     const companyFilings: Filing[] = await edgar.findFilings(company);
-    return res.json({ filings: companyFilings });
+
+    if (req.params.format === "xml") {
+      res.set("Content-Type", "text/xml");
+      return res.send(
+        o2x({
+          '?xml version="1.0" encoding="utf-8"?': null,
+          filings: { filing: companyFilings },
+        })
+      );
+    } else {
+      return res.json({ filings: companyFilings });
+    }
   } catch (error: Response | any) {
     let json: { status: number; statusText: string } = {
       status: 500,
